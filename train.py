@@ -39,16 +39,25 @@ def rmse_metric(actual, predicted):
 	return mean_error**0.5
 
 def train(path, verbose=True):
+	if isfile(path):
+        	data = pd.read_csv(path)
+    	else:
+		print("No file found. Please check your data file path.)
+        	sys.exit(42)
+		      
 	# modable params
 	l_rate = 0.01
 	n_epoch = 100
-
-	data = pd.read_csv('./data.csv')
-	print data
+	
+	if verbose:
+		print("Dataset:")
+		print data
 	data.plot(kind='scatter', x='km', y='price', figsize=(16, 8))
-	#plt.show()
-	print("Baseline Performance ZeroR: mean %g  RootMeanSquareError(RMSE) %g" % (data["price"].mean(), 
+	if verbose:
+		#plt.show()
+		print("Baseline Performance ZeroR: mean %g  RootMeanSquareError(RMSE) %g" % (data["price"].mean(), 
 		rmse_metric(data["price"], [data["price"].mean() for i in xrange(24)])))
+		      
 	# normalize
 	#print(data[0])
 	#print(len(data[0]))
@@ -64,6 +73,12 @@ def train(path, verbose=True):
 			for i in range(len(row)-1):
 				coef[i + 1] = coef[i + 1] - l_rate * error * row[i]
 			print(l_rate, n_epoch, error)
+		      
+	# save results
+	with open('theta.txt', 'w') as f:
+      		f.write(str(a))
+        	f.write("\n")
+        	f.write(str(b))
 
 if __name__ == "__main__":
 	argc = len(sys.argv)
