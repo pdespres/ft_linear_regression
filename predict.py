@@ -7,3 +7,16 @@
 Return estimated price
 """
 
+def predict(mileage):
+	if mileage < 0:
+		print("Only positivie numbers")
+		exit(42)
+	
+	return price
+
+if __name__ == "__main__":
+	argc = len(sys.argv)
+	if argc not in range(2, 3):
+		print(__doc__)
+	else:
+		print(predict(sys.argv[-1]))
