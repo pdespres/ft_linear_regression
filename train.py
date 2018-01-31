@@ -5,7 +5,7 @@
 \033[32musage:	python train.py [-s] [path to the data file]
 
 Supported options:
-	-s 		silent		don't show the messages
+	-s 		silent		don't show the messages\033[0m
 """
 
 import sys
@@ -42,7 +42,7 @@ def train(path, verbose=True):
 	if isfile(path):
         	data = pd.read_csv(path)
     	else:
-		print("No file found. Please check your data file path.)
+		print("No file found. Please check your data file path.")
         	sys.exit(42)
 		      
 	# modable params
