@@ -21,6 +21,11 @@ def predict(mileage):
 		exit(42)
 
 	# Retrieval of params
+	theta = getTheta()
+
+	return (theta[0] + (miles - 22899) / (240000 - 22899) * theta[1])
+
+def getTheta():
 	if os.path.isfile('theta'):
 		with open('theta', 'r') as f:
 			theta0 = float(f.readline())
@@ -29,8 +34,7 @@ def predict(mileage):
 	else:
 		theta0 = 0.0
 		theta1 = 0.0
-
-	return (theta0 + miles * theta1)
+	return (theta0, theta1)
 
 if __name__ == "__main__":
 	argc = len(sys.argv)
