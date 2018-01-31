@@ -9,19 +9,14 @@ Supported options:
 """
 
 import sys
+import os
+import warnings
+import subprocess
 import pandas as pd
 import matplotlib.pyplot as plt 
 import predict
 
-# Find the min and max values for each column
-def dataset_minmax(dataset):
-	minmax = list()
-	for i in range(len(dataset[0])):
-		col_values = [row[i] for row in dataset]
-		value_min = min(col_values)
-		value_max = max(col_values)
-		minmax.append([value_min, value_max])
-	return minmax
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Rescale dataset columns to the range 0-1
 def normalize_dataset(dataset, minmax):
@@ -36,49 +31,82 @@ def rmse_metric(actual, predicted):
 		prediction_error = predicted[i] - actual[i]
 		sum_error += (prediction_error ** 2)
 	mean_error = sum_error / float(len(actual))
+	#return round(mean_error**0.5,4)
 	return mean_error**0.5
 
 def train(path, verbose=True):
-	if isfile(path):
-        	data = pd.read_csv(path)
-    	else:
+	if os.path.isfile(path):
+			data = pd.read_csv(path, dtype={'km':float, 'price':float})
+	else:
 		print("No file found. Please check your data file path.")
-        	sys.exit(42)
-		      
+		sys.exit(42)
+			  
 	# modable params
-	l_rate = 0.01
-	n_epoch = 100
-	
+	l_rate = 0.1
+	#n_epoch = 100
+
+	# init. plot dataset + calculate benchmark basis (ZeroR)
 	if verbose:
 		print("Dataset:")
 		print data
 	data.plot(kind='scatter', x='km', y='price', figsize=(16, 8))
-	if verbose:
-		#plt.show()
-		print("Baseline Performance ZeroR: mean %g  RootMeanSquareError(RMSE) %g" % (data["price"].mean(), 
-		rmse_metric(data["price"], [data["price"].mean() for i in xrange(24)])))
-		      
-	# normalize
-	#print(data[0])
-	#print(len(data[0]))
-	#minmax = dataset_minmax(data)
-	#normalize_dataset(data, minmax)
+	plt.savefig('dataset.png')
 
-	for epoch in range(n_epoch):
-		for row in data:
-			print(row)
-			yhat = predict(row, coef)
-			error = yhat - row[-1]
-			coef[0] = coef[0] - l_rate * error
-			for i in range(len(row)-1):
-				coef[i + 1] = coef[i + 1] - l_rate * error * row[i]
-			print(l_rate, n_epoch, error)
-		      
-	# save results
-	with open('theta.txt', 'w') as f:
-      		f.write(str(a))
-        	f.write("\n")
-        	f.write(str(b))
+	# Normalize. Rescale dataset columns to the range 0-1
+	kmMin = data.km.min()
+	kmMax = data.km.max()
+	for index, row in enumerate(data.km):
+		data.km[index] = (row - kmMin) / (kmMax - kmMin)
+	#pMin = data.price.min()
+	#pMax = data.price.max()
+	#for index, row in enumerate(data.price):
+	#	data.price[index] = (row - pMin) / (pMax - pMin)
+
+	rmse = rmse_metric(data.price, [data.price.mean() for i in xrange(24)])
+	if verbose:
+		#subprocess.call(['open', 'dataset.png'])
+		print("\033[32mBaseline Performance (ZeroR)")
+		print("Mean %g  RootMeanSquareError(RMSE) %g\033[0m" % (data.price.mean(), rmse))
+
+	# gradient descent
+	converged = False
+	epoch = 0
+	rmse = 0
+	while not converged:
+		epoch += 1
+		theta = predict.getTheta()
+		gradient0 = 0
+		gradient1 = 0
+		priceTemp = []
+		n = float(len(data.km))
+		for index, miles in enumerate(data.km):
+			#pprice = predict.predict(miles)
+			pprice = theta[0] + theta[1] * miles
+			priceTemp.append(pprice)
+			gradient0 += (pprice - data.price[index])
+			gradient1 += (pprice - data.price[index]) * miles
+		t1 = theta[1] - l_rate * gradient1 / n
+		t0 = theta[0] - l_rate * gradient0 / n
+		temp = rmse_metric(data.price, priceTemp)
+		if rmse != 0 and temp >= rmse:
+			converged = True
+			print("Convergence achieved at epoch %g" % (epoch - 1))
+			print("Epoch %g: New thetas: price = %g + (mileage * %g)" % (epoch, t0, t1))
+			print("RootMeanSquareError(RMSE) %g" % (rmse))
+		else:
+			rmse = temp
+			#print("Epoch %g: New thetas: price = %g + mileage * %g" % (epoch, t0, t1))
+			#print("RootMeanSquareError(RMSE) %g" % (rmse))
+
+			# save results
+			with open('theta', 'w') as f:
+				f.write(str(t0))
+				f.write("\n")
+				f.write(str(t1))
+
+			if epoch > 5000:
+				converged = True
+				print("Epoch > 300")
 
 if __name__ == "__main__":
 	argc = len(sys.argv)
