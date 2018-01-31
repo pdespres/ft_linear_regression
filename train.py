@@ -36,7 +36,10 @@ def rmse_metric(actual, predicted):
 
 def train(path, verbose=True):
 	if os.path.isfile(path):
+		try:
 			data = pd.read_csv(path, dtype={'km':float, 'price':float})
+		except Exception as e:
+		exit(e)
 	else:
 		print("No file found. Please check your data file path.")
 		sys.exit(42)
