@@ -13,7 +13,10 @@ import os
 import warnings
 import subprocess
 import pandas as pd
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.image as mgimg
+from matplotlib.animation import FFMpegWriter
 import predict
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -52,13 +55,15 @@ def train(path, verbose=True):
 		print("Dataset:")
 		print data
 	data.plot(kind='scatter', x='km', y='price', figsize=(16, 8))
-	plt.savefig('dataset.png')
+	plt.grid(True)
+	plt.savefig('graphDataset.png')
 
 	# Normalize. Rescale dataset columns to the range 0-1
 	kmMin = data.km.min()
 	kmMax = data.km.max()
+	kmNorm = []
 	for index, row in enumerate(data.km):
-		data.km[index] = (row - kmMin) / (kmMax - kmMin)
+		kmNorm.append((row - kmMin) / (kmMax - kmMin))
 	#pMin = data.price.min()
 	#pMax = data.price.max()
 	#for index, row in enumerate(data.price):
@@ -66,7 +71,7 @@ def train(path, verbose=True):
 
 	rmse = rmse_metric(data.price, [data.price.mean() for i in xrange(24)])
 	if verbose:
-		#subprocess.call(['open', 'dataset.png'])
+		subprocess.call(['open', 'graphDataset.png'])
 		print("\033[32mBaseline Performance (ZeroR):")
 		print("Mean %g  RootMeanSquareError(RMSE) %g\033[0m" % (data.price.mean(), rmse))
 
@@ -74,6 +79,8 @@ def train(path, verbose=True):
 	converged = False
 	epoch = 0
 	rmse = 0
+	ims = []
+	imgInd = 1
 	while not converged:
 		epoch += 1
 		fileContent = predict.getTheta()
@@ -81,23 +88,50 @@ def train(path, verbose=True):
 		gradient0 = 0
 		gradient1 = 0
 		priceTemp = []
-		n = float(len(data.km))
-		for index, miles in enumerate(data.km):
+		n = float(len(kmNorm))
+		for index, miles in enumerate(kmNorm):
 			pprice = theta[0] + theta[1] * miles
 			priceTemp.append(pprice)
 			gradient0 += (pprice - data.price[index])
 			gradient1 += (pprice - data.price[index]) * miles
-		t0 = theta[0] - l_rate * gradient0 / n
-		t1 = theta[1] - l_rate * gradient1 / n
+		t0 = theta[0] - l_rate * 1/n * gradient0
+		t1 = theta[1] - l_rate * 1/n * gradient1
 		temp = rmse_metric(data.price, priceTemp)
 		if rmse != 0 and temp >= rmse:
 			converged = True
+			plt.close('all')
+			data.plot(kind='scatter', x='km', y='price', figsize=(16, 8))
+			plt.grid(True)
+			plt.plot(data.km, priceTemp, 'g--')
+			plt.savefig('graphResult.png')
+			if verbose:
+				subprocess.call(['open', 'GraphResult.png'])
 			print("\033[32mConvergence achieved at epoch %g\033[0m" % (epoch - 1))
+			if verbose:
+				plt.close('all')
+				fig = plt.figure(figsize=(16, 8))
+				for p in range(1, imgInd):
+					img = mgimg.imread('./img/xxx%g.png' % p)
+					imgplot = plt.imshow(img)
+					ims.append([imgplot])
+				ani = animation.ArtistAnimation(fig, ims, interval=400, blit=False,repeat_delay=1000)
+				plt.show()
+				filelist = [ f for f in os.listdir("./img/") if f.endswith(".png") ]
+				for f in filelist:
+					os.remove(os.path.join("./img/", f))
+			#writer = FFMpegWriter(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+			#ani.save("./test.mp4", writer=writer)
 		else:
 			rmse = temp
 			if verbose:
 				if epoch < 11 or (epoch < 300 and epoch % 50 == 0) or (epoch % 100 == 0):
 					print("Epoch %g: thetas (0, 1) (%g, %g)  RMSE %g" % (epoch, t0, t1, rmse))
+					plt.close('all')
+					data.plot(kind='scatter', x='km', y='price', figsize=(16, 8))
+					plt.grid(True)
+					plt.plot(data.km, priceTemp, 'r')
+					plt.savefig('./img/xxx%g.png' % imgInd)
+					imgInd += 1
 
 			# save results
 			with open('theta', 'w') as f:
