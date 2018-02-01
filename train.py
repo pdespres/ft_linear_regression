@@ -39,14 +39,13 @@ def train(path, verbose=True):
 		try:
 			data = pd.read_csv(path, dtype={'km':float, 'price':float})
 		except Exception as e:
-		exit(e)
+			exit(e)
 	else:
 		print("No file found. Please check your data file path.")
 		sys.exit(42)
 			  
 	# modable params
 	l_rate = 0.1
-	#n_epoch = 100
 
 	# init. plot dataset + calculate benchmark basis (ZeroR)
 	if verbose:
@@ -68,48 +67,49 @@ def train(path, verbose=True):
 	rmse = rmse_metric(data.price, [data.price.mean() for i in xrange(24)])
 	if verbose:
 		#subprocess.call(['open', 'dataset.png'])
-		print("\033[32mBaseline Performance (ZeroR)")
+		print("\033[32mBaseline Performance (ZeroR):")
 		print("Mean %g  RootMeanSquareError(RMSE) %g\033[0m" % (data.price.mean(), rmse))
 
-	# gradient descent
+	# gradient descent for 'epoch' iterations
 	converged = False
 	epoch = 0
 	rmse = 0
 	while not converged:
 		epoch += 1
-		theta = predict.getTheta()
+		fileContent = predict.getTheta()
+		theta = fileContent[0]
 		gradient0 = 0
 		gradient1 = 0
 		priceTemp = []
 		n = float(len(data.km))
 		for index, miles in enumerate(data.km):
-			#pprice = predict.predict(miles)
 			pprice = theta[0] + theta[1] * miles
 			priceTemp.append(pprice)
 			gradient0 += (pprice - data.price[index])
 			gradient1 += (pprice - data.price[index]) * miles
-		t1 = theta[1] - l_rate * gradient1 / n
 		t0 = theta[0] - l_rate * gradient0 / n
+		t1 = theta[1] - l_rate * gradient1 / n
 		temp = rmse_metric(data.price, priceTemp)
 		if rmse != 0 and temp >= rmse:
 			converged = True
-			print("Convergence achieved at epoch %g" % (epoch - 1))
-			print("Epoch %g: New thetas: price = %g + (mileage * %g)" % (epoch, t0, t1))
-			print("RootMeanSquareError(RMSE) %g" % (rmse))
+			print("\033[32mConvergence achieved at epoch %g\033[0m" % (epoch - 1))
 		else:
 			rmse = temp
-			#print("Epoch %g: New thetas: price = %g + mileage * %g" % (epoch, t0, t1))
-			#print("RootMeanSquareError(RMSE) %g" % (rmse))
+			if verbose:
+				if epoch < 11 or (epoch < 300 and epoch % 50 == 0) or (epoch % 100 == 0):
+					print("Epoch %g: thetas (0, 1) (%g, %g)  RMSE %g" % (epoch, t0, t1, rmse))
 
 			# save results
 			with open('theta', 'w') as f:
 				f.write(str(t0))
 				f.write("\n")
 				f.write(str(t1))
+				f.write("\n")
+				f.write(path)
 
 			if epoch > 5000:
 				converged = True
-				print("Epoch > 300")
+				print("Epoch > 5000. Failure.")
 
 if __name__ == "__main__":
 	argc = len(sys.argv)

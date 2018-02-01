@@ -9,6 +9,7 @@ Return estimated price\033[0m
 
 import sys
 import os
+import pandas as pd
 
 def predict(mileage):
 	try:
@@ -21,20 +22,35 @@ def predict(mileage):
 		exit(42)
 
 	# Retrieval of params
-	theta = getTheta()
+	#theta = getTheta()
+	fileContent = getTheta()
+	theta = fileContent[0]
+	path = fileContent[1]
+	if os.path.isfile(path):
+		try:
+			data = pd.read_csv(path, dtype={'km':float, 'price':float})
+			kmMin = data.km.min()
+			kmMax = data.km.max()
+		except Exception as e:
+			exit(e)
+	else:
+		kmMin = 0
+		kmMax = 1
 
-	return (theta[0] + (miles - 22899) / (240000 - 22899) * theta[1])
+	return (theta[0] + (miles - kmMin) / (kmMax - kmMin) * theta[1])
 
 def getTheta():
 	if os.path.isfile('theta'):
 		with open('theta', 'r') as f:
 			theta0 = float(f.readline())
 			theta1 = float(f.readline())
+			path = f.readline()
 		f.closed
 	else:
 		theta0 = 0.0
 		theta1 = 0.0
-	return (theta0, theta1)
+		path = ""
+	return [(theta0, theta1), path]
 
 if __name__ == "__main__":
 	argc = len(sys.argv)
